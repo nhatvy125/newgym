@@ -7,6 +7,16 @@ const MemberManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newAccount, setNewAccount] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'USER',
+  });
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -50,6 +60,14 @@ const MemberManagement = () => {
     const fullName = window.prompt('Họ và tên', member.fullName || member.username);
     if (fullName == null) return;
 
+    const roleInput = window.prompt('Vai trò (ADMIN/USER)', member.role || 'USER');
+    if (roleInput == null) return;
+    const role = roleInput.trim().toUpperCase();
+    if (!['ADMIN', 'USER'].includes(role)) {
+      alert('Vai trò không hợp lệ. Vui lòng nhập ADMIN hoặc USER.');
+      return;
+    }
+
     const changePassword = window.confirm('Bạn có muốn thay đổi mật khẩu không?');
     let passwordHash = null;
     if (changePassword) {
@@ -57,7 +75,7 @@ const MemberManagement = () => {
     }
 
     try {
-      const updateData = { email, fullName };
+      const updateData = { email, fullName, role };
       if (passwordHash) {
         updateData.passwordHash = passwordHash;
       }
@@ -72,35 +90,50 @@ const MemberManagement = () => {
   };
 
   const handleCreate = async () => {
-    const username = window.prompt('Username mới (ít nhất 3 ký tự)');
-    if (!username) return;
+    if (!newAccount.username || !newAccount.email || !newAccount.password || !newAccount.fullName) {
+      alert('Vui lòng điền đầy đủ thông tin tài khoản.');
+      return;
+    }
 
-    const email = window.prompt('Email (hợp lệ)');
-    if (!email) return;
+    const role = newAccount.role.trim().toUpperCase();
+    if (!['ADMIN', 'USER'].includes(role)) {
+      alert('Vai trò không hợp lệ. Vui lòng chọn ADMIN hoặc USER.');
+      return;
+    }
 
-    const password = window.prompt('Mật khẩu (ít nhất 8 ký tự)');
-    if (!password) return;
-
-    const fullName = window.prompt('Họ và tên (ít nhất 1 ký tự)');
-    if (!fullName) return;
-
+    setCreating(true);
     try {
-      const response = await memberApi.create({ username, password, email, fullName, role: 'USER' });
+      const response = await memberApi.create({
+        username: newAccount.username.trim(),
+        password: newAccount.password,
+        email: newAccount.email.trim(),
+        fullName: newAccount.fullName.trim(),
+        role,
+      });
       setMembers((prev) => [response.data, ...prev]);
-      alert('Tạo người dùng mới thành công!');
+      setNewAccount({ username: '', email: '', password: '', fullName: '', role: 'USER' });
+      setShowCreateForm(false);
+      alert(`Tạo tài khoản ${role === 'ADMIN' ? 'ADMIN' : 'USER'} thành công!`);
     } catch (err) {
       console.error('Create failed:', err);
-      const errorMsg = err.response?.data?.message || err.response?.data || 'Tạo người dùng thất bại';
+      const errorMsg = err.response?.data?.message || err.response?.data || 'Tạo tài khoản thất bại';
       alert(`Lỗi: ${errorMsg}`);
+    } finally {
+      setCreating(false);
     }
   };
 
   const filteredMembers = members.filter((member) => {
     const query = search.toLowerCase();
+    const roleValue = (member.role || 'USER').toUpperCase();
+    const matchesRole = roleFilter === 'ALL' || roleValue === roleFilter;
     return (
-      member.username?.toLowerCase().includes(query) ||
-      member.fullName?.toLowerCase().includes(query) ||
-      member.email?.toLowerCase().includes(query)
+      matchesRole &&
+      (
+        member.username?.toLowerCase().includes(query) ||
+        member.fullName?.toLowerCase().includes(query) ||
+        member.email?.toLowerCase().includes(query)
+      )
     );
   });
 
@@ -122,18 +155,96 @@ const MemberManagement = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
           <div>
             <h3 className="text-3xl font-black uppercase tracking-widest text-white italic m-0">
-              Quản lý <span className="text-red-600">Hội Viên</span>
+              Quản lý <span className="text-red-600">Tài Khoản</span>
             </h3>
-            <p className="mt-2 text-sm text-gray-400">Danh sách người dùng hiện có trong hệ thống</p>
+            <p className="mt-2 text-sm text-gray-400">Danh sách admin và user hiện có trong hệ thống</p>
           </div>
 
-          <button
-            onClick={handleCreate}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_10px_20px_rgba(220,38,38,0.3)] active:scale-95"
-          >
-            <Plus size={18} /> Thêm hội viên mới
-          </button>
+          <div className="flex flex-wrap gap-3 items-center">
+            <button
+              onClick={() => { setShowCreateForm((prev) => !prev); setNewAccount((prev) => ({ ...prev, role: 'USER' })); }}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_10px_20px_rgba(220,38,38,0.3)] active:scale-95"
+            >
+              <Plus size={18} /> Tạo tài khoản mới
+            </button>
+            <button
+              onClick={() => { setShowCreateForm(true); setNewAccount((prev) => ({ ...prev, role: 'ADMIN' })); }}
+              className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_10px_20px_rgba(15,23,42,0.3)] active:scale-95"
+            >
+              <Plus size={18} /> Tạo admin
+            </button>
+          </div>
         </div>
+
+        {showCreateForm && (
+          <div className="mb-8 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xl font-bold text-white">Tạo tài khoản mới</h4>
+                <p className="text-sm text-gray-400">Tạo tài khoản ADMIN hoặc USER cho hệ thống.</p>
+              </div>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="text-xs uppercase tracking-[0.3em] text-gray-300 hover:text-white"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <input
+                type="text"
+                value={newAccount.username}
+                onChange={(e) => setNewAccount({ ...newAccount, username: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white"
+                placeholder="Username"
+              />
+              <input
+                type="text"
+                value={newAccount.fullName}
+                onChange={(e) => setNewAccount({ ...newAccount, fullName: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white"
+                placeholder="Họ và tên"
+              />
+              <input
+                type="email"
+                value={newAccount.email}
+                onChange={(e) => setNewAccount({ ...newAccount, email: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white"
+                placeholder="Email"
+              />
+              <input
+                type="password"
+                value={newAccount.password}
+                onChange={(e) => setNewAccount({ ...newAccount, password: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white"
+                placeholder="Mật khẩu"
+              />
+              <select
+                value={newAccount.role}
+                onChange={(e) => setNewAccount({ ...newAccount, role: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white"
+              >
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="rounded-2xl bg-red-600 px-6 py-3 font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {creating ? 'Đang tạo...' : 'Tạo tài khoản'}
+              </button>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="rounded-2xl border border-white/10 px-6 py-3 font-black uppercase tracking-[0.2em] text-white hover:bg-white/5"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-4 mb-8 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full md:w-1/2">
@@ -146,9 +257,20 @@ const MemberManagement = () => {
             />
           </div>
 
-          <button className="flex items-center gap-2 justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-widest text-white transition hover:border-red-500 hover:text-red-500">
-            <Filter size={16} /> Lọc nâng cao
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="w-full md:w-auto bg-black/20 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white"
+            >
+              <option value="ALL">Tất cả vai trò</option>
+              <option value="ADMIN">ADMIN</option>
+              <option value="USER">USER</option>
+            </select>
+            <button className="flex items-center gap-2 justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-widest text-white transition hover:border-red-500 hover:text-red-500">
+              <Filter size={16} /> Lọc
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-2xl shadow-black/20 backdrop-blur-2xl">

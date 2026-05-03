@@ -12,7 +12,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        // Giữ nguyên tiền tố /api để backend Spring Boot vẫn nhận đúng route /api/auth và /api/classes
+        rewrite: (path) => path,
       }
     }
   }

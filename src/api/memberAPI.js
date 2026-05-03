@@ -11,7 +11,7 @@ const memberApi = {
     return axiosClient.get('/users/me');
   },
   create: (data) => {
-    return axiosClient.post('/users/register', data);
+    return axiosClient.post('/auth/register', data);
   },
   update: (id, data) => {
     return axiosClient.put(`/users/${id}`, data);

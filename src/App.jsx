@@ -36,9 +36,35 @@ const isTokenValid = (token) => {
   return payload?.exp ? Date.now() < payload.exp * 1000 : true;
 };
 
+const getStoredRole = () => {
+  const role = localStorage.getItem('role');
+  return role ? role.toUpperCase() : null;
+};
+
+const isAdminToken = (token) => {
+  const storedRole = getStoredRole();
+  if (storedRole) {
+    return storedRole === 'ADMIN';
+  }
+
+  const payload = parseJwt(token);
+  if (!payload) return false;
+  const role = payload.role || payload.roles || payload.authorities;
+  if (typeof role === 'string') {
+    return role.toUpperCase() === 'ADMIN';
+  }
+  if (Array.isArray(role)) {
+    return role.includes('ADMIN') || role.includes('ROLE_ADMIN');
+  }
+  if (Array.isArray(payload.authorities)) {
+    return payload.authorities.some((item) => item === 'ADMIN' || item === 'ROLE_ADMIN' || item?.authority === 'ADMIN' || item?.authority === 'ROLE_ADMIN');
+  }
+  return false;
+};
+
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
-  if (!isTokenValid(token)) {
+  if (!isTokenValid(token) || !isAdminToken(token)) {
     localStorage.removeItem('token');
     return <Navigate to="/login" replace />;
   }

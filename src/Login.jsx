@@ -38,6 +38,51 @@ export default function Login() {
     return username.length >= 3;
   };
 
+  const parseJwt = (token) => {
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch {
+      return null;
+    }
+  };
+
+  const extractRoleFromPayload = (payload) => {
+    if (!payload) return null;
+    if (payload.role) {
+      return Array.isArray(payload.role) ? payload.role[0] : payload.role;
+    }
+    if (payload.roles) {
+      return Array.isArray(payload.roles) ? payload.roles[0] : payload.roles;
+    }
+    if (payload.authorities) {
+      const authorities = Array.isArray(payload.authorities) ? payload.authorities : [payload.authorities];
+      const authority = authorities.find((item) => {
+        if (!item) return false;
+        if (typeof item === 'string') {
+          return ['ADMIN', 'ROLE_ADMIN'].includes(item.toUpperCase());
+        }
+        const authorityValue = (item.authority || item.role || item.name || '').toString().toUpperCase();
+        return authorityValue === 'ADMIN' || authorityValue === 'ROLE_ADMIN';
+      });
+      if (authority) {
+        if (typeof authority === 'string') {
+          return authority.toUpperCase().replace(/^ROLE_/, '');
+        }
+        return (authority.authority || authority.role || authority.name || '').toString().toUpperCase().replace(/^ROLE_/, '');
+      }
+    }
+    return null;
+  };
+
   // HÀM XỬ LÝ CHUNG CHO CẢ ĐĂNG KÝ VÀ ĐĂNG NHẬP
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,12 +104,45 @@ export default function Login() {
           password: password
         });
         const token = response.data.token || response.data.accessToken;
+        const refreshToken = response.data.refreshToken;
+        let userRole = response.data.user?.role || response.data.role;
         if (!token) {
           throw new Error('Không nhận được token từ server');
         }
+
+        const payload = parseJwt(token);
+        if (!userRole && response.data.user?.role) {
+          const roleValue = response.data.user.role;
+          userRole = typeof roleValue === 'string'
+            ? roleValue
+            : roleValue?.name || roleValue?.authority || null;
+        }
+        if (!userRole) {
+          userRole = extractRoleFromPayload(payload);
+        }
+
+        if (userRole) {
+          userRole = userRole.toString().toUpperCase().replace(/^ROLE_/, '');
+          localStorage.setItem('role', userRole);
+        }
+
         localStorage.setItem('token', token);
-        alert("Chào mừng bạn đến với TwelveFit!");
-        navigate('/dashboard');
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+
+        console.log('LOGIN RESPONSE', {
+          response: response.data,
+          extractedRole: userRole,
+          tokenPayload: payload
+        });
+        alert(`Chào mừng bạn đến với TwelveFit! Vai trò: ${userRole || 'UNKNOWN'}`);
+
+        if (userRole === 'ADMIN') {
+          navigate('/dashboard');
+        } else {
+          navigate('/member-booking');
+        }
       } else {
         // Validation register
         if (!username || !password || !email || !fullName) {
@@ -96,8 +174,7 @@ export default function Login() {
           username: username.trim(),
           password: password,
           fullName: fullName.trim(),
-          email: email.trim(),
-          role: "USER"
+          email: email.trim()
         });
 
         if (response.status === 200 || response.status === 201) {
