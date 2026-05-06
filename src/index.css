@@ -1,48 +1,30 @@
-html {
-  scroll-behavior: smooth;
-}
-@import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-/* Import các font chữ từ Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
-
-@theme {
-  /* Ghi đè font mặc định */
-  --font-sans: 'Montserrat', sans-serif;
-  
-  /* Tạo thêm các font tùy chỉnh */
-  --font-luxury: 'Playfair Display', serif;
-  --font-tagline: 'Raleway', sans-serif;
-
-  /* Cấu hình màu sắc chủ đạo TwelveFit */
-  --color-twelvefit-red: #d03030;
-  --color-twelvefit-dark: #1a1a1a;
+/* Global styles for TwelveFit FEadmin */
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #040404;
+  color: #f8fafc;
 }
 
-/* CÁC CSS CƠ BẢN (BASE) */
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  body {
-    @apply bg-[#0f1115] text-white;
-    font-family: var(--font-sans);
-  }
+* {
+  box-sizing: border-box;
 }
 
-/* TÙY CHỈNH THANH CUỘN (SCROLLBAR) */
-::-webkit-scrollbar {
-  width: 8px;
+html, body, #root {
+  min-height: 100%;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--color-twelvefit-dark);
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #050816;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-twelvefit-red);
-  border-radius: 4px;
+button, input, textarea, select {
+  font: inherit;
+}
+
+img, video {
+  max-width: 100%;
+  display: block;
 }
